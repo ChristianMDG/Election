@@ -117,10 +117,51 @@ public class DataRetriever {
     }
 
     public double computeTurnoutRate(){
-        throw new UnsupportedOperationException("Not supported yet.");
+      DBConnection dbConnection =  new DBConnection();
+      double turnoutRate = 0;
+      String turnoutRateSql = """
+            select count(voter_id) as voterCount , count(vote.id) as VoteCount, (count(voter_id) *100 / count(vote.id)) as taux
+                    from vote
+                    join voter
+                        on vote.voter_id = voter.id;
+      """;
+      try(Connection connection = dbConnection.getConnection();
+      PreparedStatement preparedStatement = connection.prepareStatement(turnoutRateSql)){
+          ResultSet resultSet = preparedStatement.executeQuery();
+          while (resultSet.next()) {
+              turnoutRate = resultSet.getDouble("taux");
+          }
+          return turnoutRate;
+      }catch(Exception e) {
+          throw new RuntimeException(e);
+      }
     }
 
     public ElectionResult findWinner(){
-        throw new UnsupportedOperationException("Not supported yet.");
+        DBConnection dbConnection =  new DBConnection();
+        ElectionResult electionResult = new ElectionResult();
+        String electionResultSql = """
+              select candidate.name as candidateName, count(
+                              case when vote.vote_type = 'VALID' then (vote_type) end)
+                          as validVoteCount
+                      from vote
+                               join candidate
+                                    on vote.candidate_id = candidate.id
+                      group by candidate.name
+                      order by validVoteCount desc
+                      limit 1;  
+        """;
+
+        try(Connection connection = dbConnection.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(electionResultSql)){
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                electionResult.setCandidateName(resultSet.getString("candidateName"));
+                electionResult.setValidVoteCount(resultSet.getDouble("validVoteCount"));
+            }
+            return electionResult;
+        }catch(Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
